@@ -1,0 +1,20 @@
+# Core dependencies for Ultra-Marathon Pace Prediction Project
+
+# Data processing
+pandas>=1.0.0
+numpy>=1.18.0
+polars>=0.30.0
+
+# Machine learning
+scikit-learn>=0.22.0
+lightgbm>=2.3.0
+
+# Visualization
+matplotlib>=3.0.0
+seaborn>=0.9.0
+
+# Development and testing (optional)
+pytest>=5.0.0
+
+# Additional utilities
+tqdm>=4.30.0
