@@ -1,89 +1,41 @@
-# Python
+# Generated files and directories
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
 *.so
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Data and Models
-data/
-models/
-results/
-training_results/
-complete_results/
-
-# Logs
-*.log
-logs/
-
-# Environment
-.env
-.venv
-env/
-venv/
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-
-# Output files
-output/
-outputs/
-
-# Parquet files
-*.parquet
-*.parq
-
-# CSV files (if they contain data, not code)
-*.csv
-
-# Large files
-*.zip
-*.tar.gz
-*.7z
-
-# Documentation builds
-docs/_build/
-docs/build/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Distribution / packaging
-.Python
+*.egg-info/
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
+develop-eggs/
 parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+.eggs/
+lib/
+lib64/
 
-# Virtual environments
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment files
 .env
 .venv
 env/
@@ -91,6 +43,49 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Output directories
+output/
+outputs/
+results/
+training_results/
+complete_results/
+
+# Data files (raw and processed)
+data/
+*.csv
+*.parquet
+*.parq
+*.json
+*.xml
+*.xlsx
+*.xls
+
+# Model files
+models/
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution artifacts
+.Python
+.installed.cfg
+MANIFEST
 
 # Spyder project settings
 .spyderproject
@@ -109,3 +104,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Large archive files
+*.zip
+*.tar.gz
+*.7z
+*.rar
+*.7z.001
+
+# Cache directories
+.cache/
+.cache/**
