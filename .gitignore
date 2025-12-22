@@ -61,7 +61,6 @@ training_results/
 complete_results/
 
 # Data files (raw and processed)
-data/
 *.csv
 *.parquet
 *.parq
@@ -71,7 +70,6 @@ data/
 *.xls
 
 # Model files
-models/
 
 # Documentation builds
 docs/_build/
@@ -115,3 +113,7 @@ dmypy.json
 # Cache directories
 .cache/
 .cache/**
+
+# Explicitly include all Python source files
+!*.py
+!src/**/*.py
