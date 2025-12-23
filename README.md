@@ -7,7 +7,8 @@ This project implements a machine learning pipeline to predict ultramarathon fin
 ```
 ├── data/
 │   ├── raw/                    # Original dataset
-│   └── processed/              # Cleaned and feature-engineered data
+│   ├── interim/                # Intermediate processed data
+│   └── processed/              # Final cleaned and feature-engineered data
 ├── notebooks/                  # Jupyter notebooks for exploration
 │   ├── 01_data_exploration.ipynb
 │   ├── 02_data_cleaning.ipynb
@@ -17,20 +18,28 @@ This project implements a machine learning pipeline to predict ultramarathon fin
 │   ├── data/                   # Data processing modules
 │   │   ├── load.py            # Data loading functions
 │   │   ├── clean.py           # Data cleaning functions
-│   │   ├── features.py        # Feature engineering functions
-│   │   └── split.py           # Train/test splitting functions
+│   │   ├── sort_data.py       # Chronological sorting functions
+│   │   ├── split.py           # Train/test splitting functions
+│   ├── features/               # Feature engineering modules
+│   │   ├── build_features.py  # Feature engineering functions
+│   │   └── encode_difficulty.py # Difficulty encoding functions
 │   ├── models/                 # Machine learning modules
 │   │   ├── prepare.py         # Feature preparation for modeling
 │   │   └── train.py           # Model training functions
 │   ├── visualization/          # Visualization modules
 │   │   └── eda.py             # EDA plotting functions
-│   └── evaluation/             # Model evaluation modules
-│       └── metrics.py         # Custom evaluation metrics
+│   ├── evaluation/             # Model evaluation modules
+│   │   └── metrics.py         # Custom evaluation metrics
+│   ├── pipeline_data.py               # Data processing pipeline
+│   ├── pipeline_ml.py                 # ML training pipeline
+│   ├── pipeline_ml_from_features.py   # ML training from saved features
+│   └── pipeline_full.py               # Complete end-to-end pipeline
 ├── tests/                      # Unit tests
 │   ├── test_data.py           # Tests for data modules
 │   └── test_models.py         # Tests for model modules
+├── training_results/           # Model outputs and results
 ├── reports/                    # Generated reports and figures
-└── src/pipeline.py            # Main pipeline orchestration
+└── install_requirements.py    # Dependency installer
 ```
 
 ## Key Features
@@ -55,13 +64,32 @@ This project implements a machine learning pipeline to predict ultramarathon fin
 
 ## Usage
 
-### Running the Pipeline
+### Modular Pipeline Components
 
+The pipeline is now split into three modular components for better maintainability:
+
+#### 1. Data Processing Pipeline
 ```python
-from src.pipeline import run_pipeline
+from src.pipeline_data import run_polars_pipeline_with_collection
 
-# Run the complete pipeline
-model, X_train, X_test, y_train, y_test, y_pred = run_pipeline('path/to/data.csv')
+# Process data only (load → clean → feature engineering → encoding)
+processed_data = run_polars_pipeline_with_collection('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')
+```
+
+#### 2. ML Training Pipeline
+```python
+from src.pipeline_ml import run_ml_pipeline
+
+# Train model on already processed data
+results = run_ml_pipeline(processed_data)
+```
+
+#### 3. Complete Pipeline
+```python
+from src.pipeline_full import run_full_ml_pipeline
+
+# Run complete end-to-end pipeline
+full_results = run_full_ml_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')
 ```
 
 ### Individual Components
@@ -76,7 +104,7 @@ from src.data.clean import clean_data
 df_clean = clean_data(df)
 
 # Engineer features
-from src.data.features import engineer_features
+from src.features.build_features import engineer_features
 df_features = engineer_features(df_clean)
 
 # Split data

@@ -6,7 +6,7 @@ and testing sets while preventing data leakage. The main function creates a
 time-based split where the test set contains future races that the model should predict.
 """
 
-import pandas as pd
+import polars as pl
 
 
 def split_train_test(df):
@@ -21,7 +21,7 @@ def split_train_test(df):
     during training.
     
     Args:
-        df (pd.DataFrame): Dataset with engineered features
+        df (pl.DataFrame): Dataset with engineered features
         
     Returns:
         tuple: (df_train, df_test, feature_cols)
@@ -50,32 +50,38 @@ def split_train_test(df):
     ]
 
     # Define test set: Western States 2022
-    df_test = df[
-        (df["Year of event"] == 2022) &
-        (df["Event name"].str.contains("Western States", case=False, na=False))
-    ].copy()
+    df_test = df.filter(
+        (pl.col("Year of event") == 2022) &
+        (pl.col("Event name").str.contains("Western States", literal=False, strict=False))
+    )
 
     # Identify runners in test set
-    ws_mask = (df["Year of event"] == 2022) & df["Event name"].str.contains("Western States", case=False, na=False)
-    ws_2022_runners = df.loc[ws_mask, "Athlete ID"].unique()
+    ws_mask = (
+        (pl.col("Year of event") == 2022) & 
+        pl.col("Event name").str.contains("Western States", literal=False, strict=False)
+    )
+    ws_2022_runners = df.filter(ws_mask).select("Athlete ID").unique().to_series().to_list()
 
     # Cutoff cumulative races per athlete
     # This tracks how many races each athlete had completed before the test race
-    ws_cutoffs = df[ws_mask].set_index("Athlete ID")["cum_num_races"]
+    ws_cutoffs = df.filter(ws_mask).select(["Athlete ID", "cum_num_races"]).to_dict(as_series=False)
+    ws_cutoffs_dict = dict(zip(ws_cutoffs["Athlete ID"], ws_cutoffs["cum_num_races"]))
 
-    # Map cutoff to all data
-    df["ws_cutoff"] = df["Athlete ID"].map(ws_cutoffs)  # NaN for runners not in WS 2022
+    # Map cutoff to all data using a join
+    cutoff_df = pl.DataFrame({
+        "Athlete ID": list(ws_cutoffs_dict.keys()),
+        "ws_cutoff": list(ws_cutoffs_dict.values())
+    })
+    
+    df_with_cutoff = df.join(cutoff_df, on="Athlete ID", how="left")
 
     # Keep only races before test race OR athletes not in test set
     # This ensures no future data leaks into training
     mask = (
-        (df["ws_cutoff"].notna() & (df["cum_num_races"] < df["ws_cutoff"])) | 
-        df["ws_cutoff"].isna()
+        (pl.col("ws_cutoff").is_not_null() & (pl.col("cum_num_races") < pl.col("ws_cutoff"))) | 
+        pl.col("ws_cutoff").is_null()
     )
-    df_train = df[mask].copy()
-
-    # Drop temporary column used for splitting
-    df_train = df_train.drop(columns="ws_cutoff")
+    df_train = df_with_cutoff.filter(mask).drop("ws_cutoff")
 
     print("Test set shape:", df_test.shape)
     print("Train set shape:", df_train.shape)
@@ -88,7 +94,7 @@ def split_by_year(df, test_year=2022, target_event=None):
     Alternative split function that splits by year.
     
     Args:
-        df (pd.DataFrame): Dataset with engineered features
+        df (pl.DataFrame): Dataset with engineered features
         test_year (int): Year to use for test set
         target_event (str): Optional event name to filter test set
         
@@ -115,16 +121,16 @@ def split_by_year(df, test_year=2022, target_event=None):
 
     if target_event:
         # Filter test set by specific event
-        df_test = df[
-            (df["Year of event"] == test_year) &
-            (df["Event name"].str.contains(target_event, case=False, na=False))
-        ].copy()
+        df_test = df.filter(
+            (pl.col("Year of event") == test_year) &
+            (pl.col("Event name").str.contains(target_event, literal=False, strict=False))
+        )
     else:
         # Use all races from test year
-        df_test = df[df["Year of event"] == test_year].copy()
+        df_test = df.filter(pl.col("Year of event") == test_year)
 
     # Training set: all data before test year
-    df_train = df[df["Year of event"] < test_year].copy()
+    df_train = df.filter(pl.col("Year of event") < test_year)
 
     print(f"Test set shape ({test_year}):", df_test.shape)
     print(f"Train set shape (< {test_year}):", df_train.shape)
@@ -136,4 +142,3 @@ if __name__ == "__main__":
     # Example usage
     print("Train/test split module loaded successfully")
     print("Use: split_train_test(df) for Western States 2022 split")
-    print("Use: split_by_year(df, test_year=2022) for year-based split")

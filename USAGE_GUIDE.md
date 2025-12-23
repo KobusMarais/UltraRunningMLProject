@@ -60,23 +60,60 @@ Your CSV file should contain these columns:
 
 ## 🎯 Pipeline Output
 
-When you run `python run_pipeline.py`, you'll get:
+The pipeline is now modular with separated CV and final training flows. Choose the appropriate pipeline for your needs:
+
+### Data Processing Only
+```bash
+python -c "from src.pipeline_data import run_polars_pipeline; run_polars_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')"
+```
+
+### Cross-Validation Only (for model refinement)
+```bash
+python -c "from src.pipeline_full import run_cv_only_pipeline; run_cv_only_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')"
+```
+This performs CV on training data only, saves CV metrics, and allows iterative model refinement without training a final model.
+
+### Final Training Only (production model)
+```bash
+python -c "from src.pipeline_full import run_final_training_only_pipeline; run_final_training_only_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')"
+```
+This trains a final model on complete training data and evaluates on test set. Run this after satisfactory CV performance.
+
+### Complete Pipeline (CV + Final Training)
+```bash
+python -c "from src.pipeline_full import run_full_ml_pipeline; run_full_ml_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')"
+```
+
+### ML Training Only (on pre-processed data)
+```bash
+python -c "from src.pipeline_ml import run_ml_pipeline; run_ml_pipeline(processed_data)"
+```
+
+## 📁 New Modular Structure
+
+```
+src/
+├── pipeline_data.py               # Data processing pipeline
+├── pipeline_ml.py                 # Combined ML training + CV pipeline
+├── pipeline_cv.py                 # CV-only evaluation pipeline
+├── pipeline_train_final.py        # Final model training pipeline
+├── pipeline_ml_from_features.py   # ML training from saved features
+└── pipeline_full.py               # Complete end-to-end pipelines (all modes)
+```
 
 ### Console Output
 - Data loading and cleaning statistics
 - Feature engineering results
+- **Cross-validation results on training set** (for model refinement)
 - Model training progress
 - Performance metrics (MAE, RMSE, R², accuracy percentages)
 - Feature importance rankings
 
-### Saved Files (in `results/` directory)
-- `model.txt`: Trained LightGBM model
-- `predictions.csv`: Actual vs predicted paces with errors
+### Saved Files (in `training_results/` directory)
+- `lightgbm_model.pkl`: Trained LightGBM model
+- `test_predictions.csv`: Actual vs predicted paces with errors
 - `feature_importance.csv`: Feature importance rankings
-
-### Visualizations (displayed during execution)
-- Model performance plots (predicted vs actual, residuals)
-- Feature importance charts
+- `cv_metrics.txt`: Cross-validation performance metrics on training set
 
 ## 🔧 Individual Component Usage
 
@@ -98,16 +135,49 @@ print(f"Cleaned data: {df_clean.shape}")
 
 ### Engineer Features
 ```python
-from src.data.features import engineer_features
+from src.features.build_features import engineer_features
 df_features = engineer_features(df_clean)
 print(f"Features created: {df_features.shape}")
 ```
 
-### Train Model
+### Run Modular Pipelines
 ```python
-from src.models.train import train_evaluate_lgbm
-model, y_pred = train_evaluate_lgbm(X_train, y_train, X_test, y_test)
+# Data processing only
+from src.pipeline_data import run_polars_pipeline_with_collection
+processed_data = run_polars_pipeline_with_collection('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')
+
+# ML training only
+from src.pipeline_ml import run_ml_pipeline
+results = run_ml_pipeline(processed_data)
+
+# ML training from saved features (fast iteration)
+from src.pipeline_ml_from_features import run_ml_from_features
+results = run_ml_from_features()  # Loads from data/processed/final_features.parquet
+
+# Complete pipeline
+from src.pipeline_full import run_full_ml_pipeline
+full_results = run_full_ml_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')
 ```
+
+### Fast ML Iteration Workflow
+
+For rapid ML experimentation without re-processing data:
+
+```bash
+# 1. Run data processing once (expensive)
+python -c "from src.pipeline_data import run_polars_pipeline; run_polars_pipeline('data/raw/TWO_CENTURIES_OF_UM_RACES.csv')"
+
+# 2. Iterate on ML code quickly (fast)
+python -c "from src.pipeline_ml_from_features import run_ml_from_features; run_ml_from_features()"
+
+# 3. Inspect your features file
+python -c "from src.pipeline_ml_from_features import inspect_features_file; inspect_features_file()"
+
+# 4. Check cross-validation metrics for model refinement
+cat training_results/cv_metrics.txt
+```
+
+**Note**: The pipeline now includes 5-fold cross-validation on the training set to help refine your model without overfitting on the test set (Western States 2022).
 
 ## 📓 Jupyter Notebooks
 
@@ -131,6 +201,7 @@ python -m pytest tests/
 - **RMSE**: Root Mean Squared Error - lower is better
 - **R²**: Coefficient of determination (0-1, higher is better)
 - **Accuracy**: Percentage of predictions within time thresholds
+- **CV Metrics**: Cross-validation MAE/RMSE on training set (for model refinement) - compare to final test metrics to assess overfitting
 
 ### Feature Importance
 The pipeline identifies which features most influence predictions:
