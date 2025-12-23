@@ -32,7 +32,7 @@ def engineer_features(lf: pl.LazyFrame) -> pl.LazyFrame:
         lf
         # Cumulative number of races per athlete (excluding current)
         .with_columns(
-            [pl.int_range(0, pl.count()).over("Athlete ID").alias("cum_num_races")]
+            [pl.int_range(0, pl.len()).over("Athlete ID").alias("cum_num_races")]
         )
         # Cumulative average pace (excluding current race)
         .with_columns(
@@ -106,7 +106,7 @@ def engineer_features(lf: pl.LazyFrame) -> pl.LazyFrame:
         .with_columns(
             [
                 pl.col("Event distance_numeric")
-                .rolling_mean(window_size=3, min_periods=1)
+                .rolling_mean(window_size=3, min_samples=1)
                 .over("Athlete ID")
                 .shift(1)
                 .fill_null(-1)
