@@ -9,10 +9,46 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+import os
+from datetime import datetime
+import subprocess
 
 # Import shared modules
 from src.data.split import split_train_test
-from src.models.prepare import apply_smoothed_target_encoding
+
+
+def apply_smoothed_target_encoding(train_df, test_df, column='Event_name_clean', target='pace_min_per_km', m=10):
+    """
+    Apply smoothed target encoding to categorical features.
+
+    This technique encodes categorical variables (like race names) with their
+    average target value, smoothed by the global mean to prevent overfitting.
+
+    Args:
+        train_df (pd.DataFrame): Training dataset
+        test_df (pd.DataFrame): Test dataset
+        column (str): Column name to encode
+        target (str): Target variable name
+        m (float): Smoothing factor (higher = more conservative)
+
+    Returns:
+        tuple: (train_df, test_df) with encoded features
+    """
+    # Calculate global mean from training data only (No leakage!)
+    global_mean = train_df[target].mean()
+
+    # Calculate count and mean for each category
+    agg = train_df.groupby(column)[target].agg(['count', 'mean'])
+
+    # Calculate the smoothed value using Bayesian averaging
+    # Formula: (count * mean + m * global_mean) / (count + m)
+    smooth_weights = (agg['count'] * agg['mean'] + m * global_mean) / (agg['count'] + m)
+
+    # Map the weights back to the dataframes
+    train_df['Race_Pace_Mean_Encoded'] = train_df[column].map(smooth_weights).fillna(global_mean)
+    test_df['Race_Pace_Mean_Encoded'] = test_df[column].map(smooth_weights).fillna(global_mean)
+
+    return train_df, test_df
 
 
 def prepare_data_for_modeling(df_train, df_test, feature_cols):
@@ -72,17 +108,30 @@ def prepare_data_for_modeling(df_train, df_test, feature_cols):
     return X_train, X_test, y_train, y_test, feature_cols
 
 
-def save_cv_results(cv_results, output_dir="training_results"):
+def save_cv_results(cv_results, output_dir="training_results", pipeline_name="unknown"):
     """
     Save cross-validation results to file.
 
     Args:
         cv_results (dict): CV results from train_with_cross_validation
         output_dir (str): Directory to save results
+        pipeline_name (str): Name of the pipeline that generated these results
     """
-    import os
     os.makedirs(output_dir, exist_ok=True)
 
+    # Get current timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Get git commit hash if available
+    git_commit = "unknown"
+    try:
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd=os.getcwd())
+        if result.returncode == 0:
+            git_commit = result.stdout.strip()[:8]  # Short hash
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass  # Git not available or not a git repo
+
+    # Save latest results to cv_metrics.txt
     cv_metrics_path = f"{output_dir}/cv_metrics.txt"
     with open(cv_metrics_path, 'w') as f:
         f.write("Cross-Validation Results (Training Set)\n")
@@ -92,6 +141,25 @@ def save_cv_results(cv_results, output_dir="training_results"):
         f.write(f"CV MAE Std:     {np.std(cv_results['l1-mean']):.4f}\n")
         f.write(f"CV RMSE Std:    {np.std(cv_results['rmse-mean']):.4f}\n")
     print(f"   CV metrics saved to: {cv_metrics_path}")
+
+    # Append to history file
+    history_path = f"{output_dir}/cv_metrics_history.txt"
+    is_new_file = not os.path.exists(history_path)
+
+    with open(history_path, 'a') as f:
+        if is_new_file:
+            f.write("CV Metrics History\n")
+            f.write("=" * 50 + "\n\n")
+
+        f.write(f"Run: {timestamp} - Pipeline: {pipeline_name} - Git: {git_commit}\n")
+        f.write("-" * 60 + "\n")
+        f.write(f"Average CV MAE:  {cv_results['avg_mae']:.4f} min/km\n")
+        f.write(f"Average CV RMSE: {cv_results['avg_rmse']:.4f} min/km\n")
+        f.write(f"CV MAE Std:     {np.std(cv_results['l1-mean']):.4f}\n")
+        f.write(f"CV RMSE Std:    {np.std(cv_results['rmse-mean']):.4f}\n")
+        f.write("---\n\n")
+
+    print(f"   CV metrics history appended to: {history_path}")
 
 
 def save_model_results(model, X_train, y_test, y_pred, feature_cols, output_dir="training_results"):

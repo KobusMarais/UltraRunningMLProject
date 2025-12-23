@@ -8,6 +8,7 @@ without re-running expensive data processing.
 
 import polars as pl
 from pathlib import Path
+from src.pipeline_ml import run_ml_pipeline
 
 
 def run_ml_from_features(features_file: str = "data/processed/final_features.parquet"):
@@ -41,8 +42,6 @@ def run_ml_from_features(features_file: str = "data/processed/final_features.par
     except Exception as e:
         raise RuntimeError(f"Failed to load features file: {e}")
 
-    # Import and run the ML pipeline
-    from src.pipeline_ml import run_ml_pipeline
 
     print("\n🤖 Starting ML training pipeline...")
     results = run_ml_pipeline(processed_data)

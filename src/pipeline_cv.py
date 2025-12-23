@@ -61,7 +61,7 @@ def run_cv_pipeline(processed_data: pl.DataFrame, cv_folds: int = 5, output_dir:
     # 3. Save CV results
     print("\n💾 PHASE 3: SAVE CV RESULTS")
     print("-" * 40)
-    save_cv_results(cv_results, output_dir)
+    save_cv_results(cv_results, output_dir, pipeline_name="cv_only")
 
     print("\n" + "=" * 60)
     print("🎉 CV EVALUATION PIPELINE COMPLETED SUCCESSFULLY!")

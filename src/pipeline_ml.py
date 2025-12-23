@@ -13,8 +13,10 @@ from pathlib import Path
 # Import ML-related modules
 from src.data.split import split_train_test
 from src.models.train import train_evaluate_lgbm, get_feature_importance, train_with_cross_validation
-from src.models.pipeline_utils import prepare_data_for_modeling, save_cv_results, save_model_results
+from src.models.pipeline_utils import prepare_data_for_modeling, save_cv_results, save_model_results, apply_smoothed_target_encoding
+
 from src.evaluation.metrics import print_pace_metrics
+from src.visualization.model_analysis import generate_model_analysis_charts
 
 
 def run_ml_pipeline(processed_data: pl.DataFrame):
@@ -118,15 +120,37 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     print("-" * 40)
     print_pace_metrics(y_test.values, y_pred, "Ultra-Marathon Pace Predictor")
 
-    # 6. Feature importance
-    print("\n🎯 PHASE 6: FEATURE IMPORTANCE")
+    # 6. Generate analysis charts
+    print("\n📊 PHASE 6: MODEL ANALYSIS CHARTS")
+    print("-" * 40)
+    from datetime import datetime
+    import subprocess
+    # Generate run_id similar to save_cv_results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd='.')
+        git_commit = result.stdout.strip()[:8] if result.returncode == 0 else "unknown"
+    except:
+        git_commit = "unknown"
+    run_id = f"{timestamp}_ml_pipeline_{git_commit}"
+
+    chart_results = generate_model_analysis_charts(
+        model=model,
+        X_test=X_test,
+        y_test=y_test,
+        feature_names=X_train.columns.tolist(),
+        run_id=run_id
+    )
+
+    # 7. Feature importance
+    print("\n🎯 PHASE 7: FEATURE IMPORTANCE")
     print("-" * 40)
     importance_df = get_feature_importance(model, X_train.columns)
     print("Top 10 most important features:")
     for i, (_, row) in enumerate(importance_df.head(10).iterrows()):
         print(f"  {i+1:2d}. {row['feature']:<25} {row['importance']:>8.0f}")
 
-    # 7. Save model and results
+    # 8. Save model and results
     print("\n💾 PHASE 7: SAVE RESULTS")
     print("-" * 40)
     import joblib
@@ -134,7 +158,7 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     os.makedirs("training_results", exist_ok=True)
 
     # Save CV results
-    save_cv_results(cv_results)
+    save_cv_results(cv_results, pipeline_name="ml_pipeline")
 
     # Save model and other results
     save_model_results(model, X_train, y_test, y_pred, feature_cols)

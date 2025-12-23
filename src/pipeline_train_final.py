@@ -15,6 +15,7 @@ from pathlib import Path
 from src.data.split import split_train_test
 from src.models.train import train_evaluate_lgbm
 from src.models.pipeline_utils import prepare_data_for_modeling, save_model_results
+from src.visualization.model_analysis import generate_model_analysis_charts
 
 
 def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = "training_results"):
@@ -57,8 +58,30 @@ def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = 
     print("-" * 40)
     model, y_pred = train_evaluate_lgbm(X_train, y_train, X_test, y_test)
 
-    # 4. Save model and results
-    print("\n💾 PHASE 4: SAVE MODEL AND RESULTS")
+    # 4. Generate analysis charts
+    print("\n📊 PHASE 4: MODEL ANALYSIS CHARTS")
+    print("-" * 40)
+    from datetime import datetime
+    import subprocess
+    # Generate run_id similar to save_cv_results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd='.')
+        git_commit = result.stdout.strip()[:8] if result.returncode == 0 else "unknown"
+    except:
+        git_commit = "unknown"
+    run_id = f"{timestamp}_final_training_{git_commit}"
+
+    chart_results = generate_model_analysis_charts(
+        model=model,
+        X_test=X_test,
+        y_test=y_test,
+        feature_names=X_train.columns.tolist(),
+        run_id=run_id
+    )
+
+    # 5. Save model and results
+    print("\n💾 PHASE 5: SAVE MODEL AND RESULTS")
     print("-" * 40)
     save_model_results(model, X_train, y_test, y_pred, feature_cols, output_dir)
 

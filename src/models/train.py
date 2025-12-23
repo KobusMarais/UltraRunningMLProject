@@ -11,6 +11,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 import numpy as np
 import pandas as pd
+from src.models.pipeline_utils import apply_smoothed_target_encoding
 
 
 def train_evaluate_lgbm(X_train, y_train, X_test, y_test, params=None):
@@ -88,9 +89,7 @@ def train_with_cross_validation(df_train, feature_cols, cv_folds=5, params=None)
     Returns:
         dict: Cross-validation results
     """
-    from sklearn.model_selection import TimeSeriesSplit
-    import numpy as np
-    from src.models.prepare import apply_smoothed_target_encoding
+
     
     if params is None:
         params = {

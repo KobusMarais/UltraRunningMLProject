@@ -62,6 +62,31 @@ This project implements a machine learning pipeline to predict ultramarathon fin
 - **Time-based Splitting**: Prevents data leakage by ensuring no future information in training
 - **Comprehensive Evaluation**: Multiple metrics including pace-specific accuracy measures
 
+## Data Leakage Prevention
+
+This project implements multiple safeguards to prevent data leakage in the time-series ultramarathon pace prediction task:
+
+### Time-Based Data Splitting
+- **Test Set**: Western States 2022 race only
+- **Training Set**: All prior races of test athletes + races from other athletes
+- **Leakage Prevention**: Ensures no future race data influences training
+
+### Feature Engineering Safeguards
+- **Chronological Sorting**: All data sorted by athlete and year before feature creation
+- **Cumulative Features**: Use `shift(1)` to exclude current race from historical statistics
+- **Rolling Windows**: Recent performance metrics exclude current race data
+- **Temporal Integrity**: Features for year Y only use data from years < Y
+
+### Cross-Validation Protection
+- **TimeSeriesSplit**: Uses temporal cross-validation instead of random splits
+- **Per-Fold Encoding**: Target encoding computed separately for each CV fold
+- **No Future Leakage**: Validation folds always come after training folds chronologically
+
+### Automated Validation
+- **Unit Tests**: Automated tests verify temporal integrity of features
+- **Leakage Detection**: Tests ensure cumulative statistics exclude current race
+- **Split Validation**: Tests confirm proper temporal separation of train/test data
+
 ## Usage
 
 ### Modular Pipeline Components
