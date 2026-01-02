@@ -149,37 +149,6 @@ def engineer_features(lf: pl.LazyFrame) -> pl.LazyFrame:
 
     return features_lf
 
-
-def save_features(
-    lf: pl.LazyFrame, output_path: str = "data/processed/final_features.parquet"
-):
-    """
-    Save engineered features to parquet format.
-
-    Args:
-        lf (pl.LazyFrame): Lazy frame with engineered features
-        output_path (str): Output path for parquet file
-    """
-    # Ensure directory exists
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-    # Save with streaming for memory efficiency
-    lf.sink_parquet(output_path, compression="snappy")
-
-
-def load_features(path: str = "data/processed/final_features.parquet") -> pl.LazyFrame:
-    """
-    Load previously engineered features from parquet file.
-
-    Args:
-        path (str): Path to features parquet file
-
-    Returns:
-        pl.LazyFrame: Loaded features data
-    """
-    return pl.scan_parquet(path)
-
-
 if __name__ == "__main__":
     # Example usage
     print("Feature engineering module loaded successfully")

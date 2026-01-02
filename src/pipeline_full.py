@@ -15,6 +15,8 @@ from src.pipeline_cv import run_cv_pipeline
 from src.pipeline_train_final import run_final_training_pipeline
 
 
+##TODO Rename as application entrypoint, not pipeline
+
 def run_full_ml_pipeline(csv_path: str):
     """
     Complete end-to-end ML pipeline for ultramarathon pace prediction.

@@ -14,7 +14,7 @@ from src.data.load import load_raw_data, save_interim_data
 from src.data.clean import clean_data
 from src.data.sort_data import sort_chronologically, save_sorted_data
 from src.data.split import split_train_test
-from src.features.build_features import engineer_features, save_features
+from src.features.build_features import engineer_features
 
 
 def run_polars_pipeline(csv_path: str):
@@ -59,7 +59,7 @@ def run_polars_pipeline(csv_path: str):
     print("\n4. Engineering features with window functions...")
     features_lf = engineer_features(cleaned_lf)
     print(f"   Feature engineering completed - saving to processed/final_features.parquet")
-    save_features(features_lf, "data/processed/final_features.parquet")
+    save_interim_data(features_lf, "data/processed/final_features.parquet")
 
     print("\n" + "=" * 60)
     print("DATA PROCESSING PIPELINE COMPLETED SUCCESSFULLY!")
@@ -107,39 +107,6 @@ def run_polars_pipeline_with_collection(csv_path: str):
         print(f"   Collected {len(final_df)} rows with {len(final_df.columns)} columns")
 
         return final_df
-
-
-def inspect_data_pipeline_results():
-    """
-    Inspect the results of the data pipeline by loading intermediate files.
-
-    Returns:
-        dict: Dictionary of lazy frames for inspection
-    """
-
-    results = {}
-
-    # Load intermediate results
-    try:
-        results['cleaned'] = pl.scan_parquet("data/interim/cleaned.parquet")
-        print("✓ Cleaned data loaded")
-    except:
-        print("✗ Cleaned data not found")
-
-    try:
-        results['sorted'] = pl.scan_parquet("data/interim/sorted.parquet")
-        print("✓ Sorted data loaded")
-    except:
-        print("✗ Sorted data not found")
-
-    try:
-        results['features'] = pl.scan_parquet("data/processed/final_features.parquet")
-        print("✓ Features data loaded")
-    except:
-        print("✗ Features data not found")
-
-    return results
-
 
 if __name__ == "__main__":
     # Example usage

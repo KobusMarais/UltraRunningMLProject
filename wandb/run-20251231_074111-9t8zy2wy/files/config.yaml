@@ -1,0 +1,54 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            0bwql04ccpa3v1ftzkqntm7iq7smaf09:
+                cpu_count: 6
+                cpu_count_logical: 12
+                disk:
+                    /:
+                        total: "292993101824"
+                        used: "265294974976"
+                email: k.marais42@gmail.com
+                executable: C:\Users\kmara\miniconda3\python.exe
+                git:
+                    commit: 373d5a0b8d8b91c70b8ba81d076490f00930423c
+                    remote: https://github.com/KobusMarais/UltraRunningMLProject.git
+                host: MSI
+                memory:
+                    total: "34198994944"
+                os: Windows-11-10.0.26200-SP0
+                program: <python with no main file>
+                python: CPython 3.13.11
+                root: C:\Users\kmara\Desktop\ML Project\UltraRunningMLProject
+                startedAt: "2025-12-31T05:41:11.619568Z"
+                writerId: 0bwql04ccpa3v1ftzkqntm7iq7smaf09
+        m: []
+        python_version: 3.13.11
+        t:
+            "1":
+                - 5
+                - 8
+                - 53
+            "2":
+                - 5
+                - 8
+                - 53
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.13.11
+            "5": 0.23.1
+            "8":
+                - 3
+            "12": 0.23.1
+            "13": windows-amd64
+cv_folds:
+    value: 5
+features:
+    value: 15
+output_dir:
+    value: training_results
+training_samples:
+    value: 6145223

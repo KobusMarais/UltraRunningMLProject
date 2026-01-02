@@ -182,22 +182,6 @@ def clean_data(lf: pl.LazyFrame) -> pl.LazyFrame:
     
     return cleaned_lf
 
-
-def save_cleaned_data(lf: pl.LazyFrame, output_path: str = "data/interim/cleaned.parquet"):
-    """
-    Save cleaned data to parquet format.
-    
-    Args:
-        lf (pl.LazyFrame): Cleaned lazy frame
-        output_path (str): Output path for parquet file
-    """
-    # Ensure directory exists
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Save with streaming for memory efficiency
-    lf.sink_parquet(output_path, use_pyarrow=True, compression="snappy")
-
-
 if __name__ == "__main__":
     # Example usage
     print("Data cleaning module loaded successfully")

@@ -5,17 +5,23 @@ This module contains the machine learning training and evaluation functions.
 It assumes data has already been processed and is ready for modeling.
 """
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+import wandb
 
 # Import ML-related modules
 from src.data.split import split_train_test
 from src.models.train import train_evaluate_lgbm, get_feature_importance, train_with_cross_validation
 from src.models.pipeline_utils import prepare_data_for_modeling, save_cv_results, save_model_results, apply_smoothed_target_encoding
 
-from src.evaluation.metrics import print_pace_metrics
+from src.evaluation.metrics import print_pace_metrics, calculate_pace_metrics
 from src.visualization.model_analysis import generate_model_analysis_charts
 
 
@@ -45,6 +51,28 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     print(f"   Test set: {df_test.shape[0]} samples")
     print(f"   Features: {len(feature_cols)}")
 
+    # Initialize Weights & Biases
+    from datetime import datetime
+    import subprocess
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd='.')
+        git_commit = result.stdout.strip()[:8] if result.returncode == 0 else "unknown"
+    except:
+        git_commit = "unknown"
+    run_name = f"ml_pipeline_{timestamp}_{git_commit}"
+    wandb.init(
+        project="ultra-running-ml",
+        name=run_name,
+        config={
+            "pipeline": "ml_pipeline",
+            "cv_folds": 5,
+            "training_samples": df_train.shape[0],
+            "test_samples": df_test.shape[0],
+            "features": len(feature_cols)
+        }
+    )
+
     # 2. Prepare data for modeling
     print("\n🛠️  PHASE 2: DATA PREPARATION")
     print("-" * 40)
@@ -60,6 +88,12 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     print(f"Average CV MAE:  {cv_results['avg_mae']:.4f}")
     print(f"Average CV RMSE: {cv_results['avg_rmse']:.4f}")
     print("Use these metrics to assess model performance on unseen training folds.")
+
+    # Log CV metrics to W&B
+    wandb.log({
+        "cv_avg_mae": cv_results['avg_mae'],
+        "cv_avg_rmse": cv_results['avg_rmse']
+    })
 
     # Apply race difficulty encoding using pandas
     df_train_pd, df_test_pd = apply_smoothed_target_encoding(df_train_pd, df_test_pd)
@@ -119,6 +153,15 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     print("\n📈 PHASE 5: MODEL EVALUATION")
     print("-" * 40)
     print_pace_metrics(y_test.values, y_pred, "Ultra-Marathon Pace Predictor")
+    test_metrics = calculate_pace_metrics(y_test.values, y_pred)
+
+    # Log test metrics to W&B
+    wandb.log({
+        "test_mae": test_metrics['MAE'],
+        "test_rmse": test_metrics['RMSE'],
+        "test_r2": test_metrics['R²'],
+        "test_mape": test_metrics['MAPE']
+    })
 
     # 6. Generate analysis charts
     print("\n📊 PHASE 6: MODEL ANALYSIS CHARTS")
@@ -163,9 +206,16 @@ def run_ml_pipeline(processed_data: pl.DataFrame):
     # Save model and other results
     save_model_results(model, X_train, y_test, y_pred, feature_cols)
 
+    # Log artifacts to W&B
+    artifact = wandb.Artifact("ml_results", type="dataset")
+    artifact.add_dir("training_results")
+    wandb.log_artifact(artifact)
+
     print("\n" + "=" * 60)
     print("🎉 ML TRAINING PIPELINE COMPLETED SUCCESSFULLY!")
     print("=" * 60)
+
+    wandb.finish()
 
     # Return comprehensive results
     results = {

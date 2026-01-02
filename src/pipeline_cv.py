@@ -6,15 +6,23 @@ on training data via cross-validation without training a final model or evaluati
 on test data. This allows for iterative model refinement.
 """
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+import wandb
+import datetime
 
 # Import ML-related modules
 from src.data.split import split_train_test
 from src.models.train import train_with_cross_validation
 from src.models.pipeline_utils import save_cv_results
+from src.pipeline_data import run_polars_pipeline_with_collection
 
 
 def run_cv_pipeline(processed_data: pl.DataFrame, cv_folds: int = 5, output_dir: str = "training_results"):
@@ -46,6 +54,19 @@ def run_cv_pipeline(processed_data: pl.DataFrame, cv_folds: int = 5, output_dir:
     print(f"   Test set: {df_test.shape[0]} samples (held out)")
     print(f"   Features: {len(feature_cols)}")
 
+    # Initialize Weights & Biases
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    wandb.init(
+        project="ultra-running-cv",
+        name=f"cv_{cv_folds}folds_{timestamp}",
+        config={
+            "cv_folds": cv_folds,
+            "output_dir": output_dir,
+            "training_samples": df_train.shape[0],
+            "features": len(feature_cols)
+        }
+    )
+
     # 2. Cross-validation evaluation on training set
     print("\n🔄 PHASE 2: CROSS-VALIDATION EVALUATION")
     print("-" * 40)
@@ -58,16 +79,29 @@ def run_cv_pipeline(processed_data: pl.DataFrame, cv_folds: int = 5, output_dir:
     print(f"Average CV MAE:  {cv_results['avg_mae']:.4f} min/km")
     print(f"Average CV RMSE: {cv_results['avg_rmse']:.4f} min/km")
 
+    # Log CV metrics to W&B
+    wandb.log({
+        "cv_avg_mae": cv_results['avg_mae'],
+        "cv_avg_rmse": cv_results['avg_rmse']
+    })
+
     # 3. Save CV results
     print("\n💾 PHASE 3: SAVE CV RESULTS")
     print("-" * 40)
     save_cv_results(cv_results, output_dir, pipeline_name="cv_only")
+
+    # Log CV results as W&B artifact
+    artifact = wandb.Artifact("cv_results", type="dataset")
+    artifact.add_dir(output_dir)
+    wandb.log_artifact(artifact)
 
     print("\n" + "=" * 60)
     print("🎉 CV EVALUATION PIPELINE COMPLETED SUCCESSFULLY!")
     print("=" * 60)
     print("Use these CV metrics to refine your model.")
     print("When satisfied with performance, run the full training pipeline.")
+
+    wandb.finish()
 
     return cv_results
 
@@ -92,7 +126,6 @@ def load_processed_data_and_run_cv(csv_path: str = None, processed_df: pl.DataFr
         return run_cv_pipeline(processed_df, cv_folds, output_dir)
     elif csv_path is not None:
         # Run data pipeline first, then CV
-        from src.pipeline_data import run_polars_pipeline_with_collection
         processed_data = run_polars_pipeline_with_collection(csv_path)
         return run_cv_pipeline(processed_data, cv_folds, output_dir)
     else:

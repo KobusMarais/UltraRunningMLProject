@@ -6,16 +6,23 @@ on the complete training set and evaluates it on the test set (Western States 20
 This should be run after satisfactory CV performance is achieved.
 """
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+import wandb
 
 # Import ML-related modules
 from src.data.split import split_train_test
 from src.models.train import train_evaluate_lgbm
 from src.models.pipeline_utils import prepare_data_for_modeling, save_model_results
 from src.visualization.model_analysis import generate_model_analysis_charts
+from src.evaluation.metrics import calculate_pace_metrics
 
 
 def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = "training_results"):
@@ -46,6 +53,28 @@ def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = 
     print(f"   Test set: {df_test.shape[0]} samples")
     print(f"   Features: {len(feature_cols)}")
 
+    # Initialize Weights & Biases
+    from datetime import datetime
+    import subprocess
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, cwd='.')
+        git_commit = result.stdout.strip()[:8] if result.returncode == 0 else "unknown"
+    except:
+        git_commit = "unknown"
+    run_name = f"final_training_{timestamp}_{git_commit}"
+    wandb.init(
+        project="ultra-running-final",
+        name=run_name,
+        config={
+            "pipeline": "final_training",
+            "training_samples": df_train.shape[0],
+            "test_samples": df_test.shape[0],
+            "features": len(feature_cols),
+            "output_dir": output_dir
+        }
+    )
+
     # 2. Data preparation
     print("\n🛠️  PHASE 2: DATA PREPARATION")
     print("-" * 40)
@@ -57,6 +86,15 @@ def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = 
     print("\n🤖 PHASE 3: FINAL MODEL TRAINING")
     print("-" * 40)
     model, y_pred = train_evaluate_lgbm(X_train, y_train, X_test, y_test)
+
+    # Calculate and log test metrics to W&B
+    test_metrics = calculate_pace_metrics(y_test.values, y_pred)
+    wandb.log({
+        "test_mae": test_metrics['MAE'],
+        "test_rmse": test_metrics['RMSE'],
+        "test_r2": test_metrics['R²'],
+        "test_mape": test_metrics['MAPE']
+    })
 
     # 4. Generate analysis charts
     print("\n📊 PHASE 4: MODEL ANALYSIS CHARTS")
@@ -85,9 +123,16 @@ def run_final_training_pipeline(processed_data: pl.DataFrame, output_dir: str = 
     print("-" * 40)
     save_model_results(model, X_train, y_test, y_pred, feature_cols, output_dir)
 
+    # Log artifacts to W&B
+    artifact = wandb.Artifact("final_training_results", type="dataset")
+    artifact.add_dir(output_dir)
+    wandb.log_artifact(artifact)
+
     print("\n" + "=" * 60)
     print("🎉 FULL TRAINING PIPELINE COMPLETED SUCCESSFULLY!")
     print("=" * 60)
+
+    wandb.finish()
 
     # Return comprehensive results
     results = {
